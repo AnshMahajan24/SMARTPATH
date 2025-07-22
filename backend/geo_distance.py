@@ -5,43 +5,34 @@ from dotenv import load_dotenv
 import openrouteservice
 
 # Load from Streamlit secrets (Cloud)
-ORS_API_KEY = st.secrets.get("ORS_API_KEY")
+ORS_API_KEY = st.secrets.get("ORS_API_KEY", None)
 
-# Fallback to local .env for dev
+# Fallback to local .env for development
 if ORS_API_KEY is None:
     load_dotenv()
     ORS_API_KEY = os.getenv("ORS_API_KEY")
 
 if ORS_API_KEY is None:
-    st.error("ORS API key not found!")
+    st.error("❌ ORS API key not found!")
 else:
     client = openrouteservice.Client(key=ORS_API_KEY)
 
-
-
-# ✅ Function to convert a place name or full address into coordinates
+# ✅ Function to convert place name / full address to coordinates
 def get_coordinates(place_name):
-    """
-    Given a place name or full address, returns [longitude, latitude] using ORS geocoding.
-    """
     url = "https://api.openrouteservice.org/geocode/search"
-    
     params = {
-        "api_key": ORS_API_KEY,  # Required key to access the API
-        "text": place_name,      # Address or place to search
-        "size": 1                # Get only the best/top match
+        "api_key": ORS_API_KEY,
+        "text": place_name,
+        "size": 1
     }
 
-    # 📡 Sending GET request to ORS API
     response = requests.get(url, params=params)
 
     if response.status_code == 200:
-        # ✅ If request is successful, extract the coordinates
         data = response.json()
         features = data.get("features", [])
-        
         if features:
-            coordinates = features[0]['geometry']['coordinates']  # Format: [lon, lat]
+            coordinates = features[0]['geometry']['coordinates']  # [lon, lat]
             return coordinates
         else:
             print(f"❌ No coordinates found for: {place_name}")
@@ -49,19 +40,14 @@ def get_coordinates(place_name):
     else:
         print(f"⚠️ Error {response.status_code}: Could not fetch data for {place_name}")
         return None
-    
-def get_distance(coord1, coord2):
-    """
-    Calculate real-world travel distance (in km) between two coordinates using ORS Directions API.
-    coord1 and coord2 should be in format [longitude, latitude]
-    """
-    url = "https://api.openrouteservice.org/v2/directions/driving-car"
 
+# ✅ Function to calculate distance between 2 coordinates
+def get_distance(coord1, coord2):
+    url = "https://api.openrouteservice.org/v2/directions/driving-car"
     headers = {
         "Authorization": ORS_API_KEY,
         "Content-Type": "application/json"
     }
-
     body = {
         "coordinates": [coord1, coord2]
     }
@@ -74,20 +60,22 @@ def get_distance(coord1, coord2):
         distance_km = round(distance_meters / 1000, 2)
         return distance_km
     else:
-        print(f"Error fetching distance: {response.status_code}")
+        print(f"❌ Error fetching distance: {response.status_code}")
         return None
 
-if __name__ == "__main__":
-    address = input("Enter full address: ")
-    coords = get_coordinates(address)
-    print("Coordinates:", coords)
+# ✅ Sample test run
 if __name__ == "__main__":
     place1 = "Pathankot, Punjab, 145001"
-    place2 = "Kathua, Jammu and kashmir, 184101"
+    place2 = "Kathua, Jammu and Kashmir, 184101"
 
     coord1 = get_coordinates(place1)
     coord2 = get_coordinates(place2)
 
     if coord1 and coord2:
+        print("📍 Coordinates 1:", coord1)
+        print("📍 Coordinates 2:", coord2)
+
         distance = get_distance(coord1, coord2)
-        print(f"Distance between {place1} and {place2} is {distance} km")
+        print(f"✅ Distance between {place1} and {place2}: {distance} km")
+    else:
+        print("❌ Failed to fetch coordinates for one or both places.")
